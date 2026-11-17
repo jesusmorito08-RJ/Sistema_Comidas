@@ -25,6 +25,8 @@ Aplicación Laravel 13 de pedidos de comida a domicilio, carrito, ofertas, reser
 
 Las migraciones crean las tablas `users`, `password_reset_tokens`, `sessions`, `cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs`, `foods`, `orders`, `order_items` y `reservations`. El seeder agrega dos cuentas y 16 comidas de muestra, incluidos platos peruanos. El menú permite filtrar por categorías como entradas peruanas, platos de fondo, anticuchos, sopas, postres y bebidas. No borres la base de datos con `migrate:fresh` si quieres conservar pedidos y clientes.
 
+Para agregar clientes de prueba, configura `SEED_CUSTOMER_EMAILS` en el `.env` con correos separados por comas y ejecuta `php artisan db:seed --class=AdditionalCustomersSeeder`. El nombre inicial se toma del correo y la contraseña se copia de la cuenta demo de Sofía. Usa estas credenciales compartidas solo en desarrollo y reemplázalas antes de usar cuentas reales.
+
 ## URLs de la aplicación
 
 | Sección | URL |

@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             ['email' => 'cliente@sazon.test'],
             ['name' => 'Sofía Ramírez', 'password' => 'cliente12345', 'role' => 'customer', 'phone' => '555 010 2040', 'address' => 'Av. del Sabor 123', 'is_active' => true],
         );
+        $this->call(AdditionalCustomersSeeder::class);
 
         $foods = [
             ['name' => 'Bowl de la huerta', 'category' => 'Saludables', 'description' => 'Quinoa, aguacate cremoso, verduras de estación y aderezo cítrico.', 'price' => 12.50, 'offer_price' => 10.90, 'image_path' => 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=85', 'is_available' => true, 'is_featured' => true],

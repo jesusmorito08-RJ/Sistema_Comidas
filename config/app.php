@@ -54,6 +54,11 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'seed_customer_emails' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', env('SEED_CUSTOMER_EMAILS', '')),
+    ))),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
