@@ -18,7 +18,7 @@ button{cursor:pointer}
 .main-nav a,.nav-login,.nav-logout,.cart-link{font-size:13px;font-weight:600;color:#5f5f56;transition:color .2s}
 .main-nav a:hover,.nav-login:hover,.nav-logout:hover{color:var(--orange)}
 .nav-actions{gap:17px}
-.cart-link{display:flex;align-items:center;gap:7px}
+.cart-link{display:flex;align-items:center;gap:7px}.cart-icon{width:28px;height:28px;flex:none}
 .cart-count{width:21px;height:21px;border-radius:50%;display:grid;place-items:center;background:#fff0f2;color:var(--red-dark);font-size:11px}
 .nav-actions form{margin:0}
 .nav-logout{background:none;border:0;padding:0}

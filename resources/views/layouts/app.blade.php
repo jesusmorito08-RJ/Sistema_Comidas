@@ -24,13 +24,11 @@
                     <a href="{{ route('orders.mine') }}">Mis pedidos</a>
                 @endif
             @else
-                <a href="{{ route('login') }}">Acceso de clientes</a>
-                <a href="{{ route('admin.login') }}">Acceso administrativo</a>
             @endauth
         </nav>
         <div class="nav-actions">
             @if(!auth()->check() || auth()->user()->role !== 'admin')
-                <a class="cart-link" href="{{ route('cart.index') }}">Carrito <span class="cart-count">{{ collect(session('cart', []))->sum() }}</span></a>
+                <a class="cart-link" href="{{ route('cart.index') }}"><svg class="cart-icon" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="16" cy="16" r="15" fill="#08b9df"/><path d="M7 8h3l2.5 13.2h12L27 12H11" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 12.2 14 21m4-8.8V21m4-8.8L21 21" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><circle cx="15" cy="25.5" r="1.7" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="23" cy="25.5" r="1.7" fill="none" stroke="#fff" stroke-width="1.6"/></svg></a>
             @endif
             @auth
                 <span class="nav-user">{{ auth()->user()->name }}</span>
