@@ -39,6 +39,35 @@ class FoodOrderingTest extends TestCase
         $this->assertSame('cash', $order->payment_method);
     }
 
+    public function test_cart_displays_quantity_controls_product_details_and_order_total(): void
+    {
+        $food = Food::create([
+            'name' => 'Pasta de prueba',
+            'category' => 'Pasta',
+            'description' => 'Pasta fresca',
+            'price' => 15,
+            'offer_price' => 12,
+            'image_path' => 'https://example.test/pasta.jpg',
+            'is_available' => true,
+        ]);
+
+        $response = $this->withSession(['cart' => [(string) $food->id => 2]])
+            ->get(route('cart.index'));
+
+        $response->assertOk()
+            ->assertViewIs('store.cart')
+            ->assertSee('alt="Pasta de prueba"', false)
+            ->assertSee('aria-label="Disminuir cantidad de Pasta de prueba"', false)
+            ->assertSee('aria-label="Aumentar cantidad de Pasta de prueba"', false)
+            ->assertSee('name="quantity" value="1"', false)
+            ->assertSee('name="quantity" value="3"', false)
+            ->assertSeeText('Pasta de prueba')
+            ->assertSeeText('$12.00 c/u')
+            ->assertSeeText('$24.00')
+            ->assertSeeText('Productos (2)')
+            ->assertSeeText('Total del pedido');
+    }
+
     public function test_customer_cannot_open_the_admin_panel_but_admin_can(): void
     {
         $customer = User::factory()->create(['role' => 'customer']);
