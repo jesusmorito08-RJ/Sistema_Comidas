@@ -11,7 +11,7 @@ Aplicación Laravel 13 de pedidos de comida a domicilio, carrito, ofertas, reser
    CREATE DATABASE sazon_delivery CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
    ```
 
-3. En `.env`, revisa `DB_CONNECTION=mysql`, `DB_HOST=127.0.0.1`, `DB_PORT=3306`, `DB_DATABASE=sazon_delivery` y las credenciales de tu instalación. XAMPP normalmente usa el usuario `root` sin contraseña local.
+3. En `.env`, revisa `APP_URL` y los valores `DB_CONNECTION=mysql`, `DB_HOST=127.0.0.1`, `DB_PORT=3306`, `DB_DATABASE=sazon_delivery` y las credenciales de tu instalación. Para Apache/XAMPP usa `APP_URL=http://localhost/SISTEMA_COMIDAS/public`; si inicias con `php artisan serve`, usa `APP_URL=http://127.0.0.1:8000`. XAMPP normalmente usa el usuario `root` sin contraseña local.
 4. Desde la carpeta del proyecto, ejecuta:
 
    ```powershell
