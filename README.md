@@ -23,9 +23,7 @@ Aplicación Laravel 13 de pedidos de comida a domicilio, carrito, ofertas, reser
 5. Con Apache activo, abre `http://localhost/SISTEMA_COMIDAS/public`. XAMPP redirige el proyecto a `public/`, y cada sección conserva su ruta separada (por ejemplo, `/SISTEMA_COMIDAS/public/admin` y `/SISTEMA_COMIDAS/public/carrito`).
    Alternativamente, desde el terminal puedes iniciar `php artisan serve` y abrir `http://127.0.0.1:8000`.
 
-Las migraciones crean las tablas `users`, `password_reset_tokens`, `sessions`, `cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs`, `foods`, `orders`, `order_items` y `reservations`. El seeder agrega dos cuentas y 16 comidas de muestra, incluidos platos peruanos. El menú permite filtrar por categorías como entradas peruanas, platos de fondo, anticuchos, sopas, postres y bebidas. No borres la base de datos con `migrate:fresh` si quieres conservar pedidos y clientes.
-
-Para agregar clientes de prueba, configura `SEED_CUSTOMER_EMAILS` en el `.env` con correos separados por comas y ejecuta `php artisan db:seed --class=AdditionalCustomersSeeder`. El nombre inicial se toma del correo y la contraseña se copia de la cuenta demo de Sofía. Usa estas credenciales compartidas solo en desarrollo y reemplázalas antes de usar cuentas reales.
+Las migraciones crean las tablas `users`, `password_reset_tokens`, `sessions`, `cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs`, `foods`, `orders`, `order_items` y `reservations`. El seeder agrega la cuenta de administración, la cuenta demo de Sofía y cuatro clientes adicionales con la misma contraseña de Sofía, además de comidas de muestra con platos peruanos. El menú permite filtrar por categorías como entradas peruanas, platos de fondo, anticuchos, sopas, postres y bebidas. No borres la base de datos con `migrate:fresh` si quieres conservar pedidos y clientes.
 
 ## URLs de la aplicación
 
