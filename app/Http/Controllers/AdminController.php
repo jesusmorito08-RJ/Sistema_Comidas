@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Food;
 use App\Models\Order;
+use App\Models\PaymentProof;
 use App\Models\Reservation;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -23,7 +24,10 @@ class AdminController extends Controller
             'today_orders' => (clone $orders)->whereDate('created_at', today())->count(),
             'pending_orders' => (clone $orders)->whereIn('status', ['pending', 'confirmed', 'preparing'])->count(),
             'customers' => User::where('role', 'customer')->where('is_active', true)->count(),
-            'revenue' => (clone $orders)->where('status', '!=', 'cancelled')->sum('total'),
+            'revenue' => (clone $orders)
+                ->where('status', '!=', 'cancelled')
+                ->where('payment_status', 'paid')
+                ->sum('total'),
         ];
         $recentOrders = Order::with('user')->latest()->limit(7)->get();
         $reservations = Reservation::with('user')->where('status', 'pending')->orderBy('reservation_date')->limit(5)->get();
@@ -35,7 +39,11 @@ class AdminController extends Controller
     public function orders(Request $request): View
     {
         $archived = $request->boolean('archived');
-        $orders = Order::with(['user', 'items'])
+        $orders = Order::with([
+            'user',
+            'items',
+            'paymentProofs' => fn ($query) => $query->where('status', PaymentProof::STATUS_APPROVED),
+        ])
             ->when($archived, fn ($query) => $query->onlyTrashed())
             ->latest()
             ->paginate(12)
@@ -48,37 +56,48 @@ class AdminController extends Controller
     {
         $data = $request->validate([
             'status' => ['required', Rule::in(['pending', 'confirmed', 'preparing', 'on_the_way', 'delivered', 'cancelled'])],
-            'payment_status' => ['required', Rule::in(['pending', 'paid'])],
             'delivery_address' => ['sometimes', 'required', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
-        $data['delivery_address'] ??= $order->delivery_address;
-        if (! array_key_exists('notes', $data)) {
-            $data['notes'] = $order->notes;
-        }
-        $allowedTransitions = [
-            'pending' => ['confirmed', 'cancelled'],
-            'confirmed' => ['preparing', 'cancelled'],
-            'preparing' => ['on_the_way', 'cancelled'],
-            'on_the_way' => ['delivered'],
-            'delivered' => [],
-            'cancelled' => [],
-        ];
-        if ($data['status'] !== $order->status && ! in_array($data['status'], $allowedTransitions[$order->status] ?? [], true)) {
-            throw ValidationException::withMessages(['status' => 'Ese cambio de estado no está permitido para este pedido.']);
-        }
-        if ($order->payment_status === 'paid' && $data['payment_status'] !== 'paid') {
-            throw ValidationException::withMessages(['payment_status' => 'Un pago registrado no puede volver a estado pendiente.']);
-        }
-        if ($data['status'] === 'cancelled' && ($order->payment_status === 'paid' || $data['payment_status'] === 'paid')) {
-            throw ValidationException::withMessages(['status' => 'No se puede cancelar un pedido ya pagado.']);
-        }
-        if (! in_array($order->status, ['pending', 'confirmed'], true) && (
-            $data['delivery_address'] !== $order->delivery_address || $data['notes'] !== $order->notes
-        )) {
-            throw ValidationException::withMessages(['delivery_address' => 'La dirección y las notas no se pueden cambiar cuando la preparación ya comenzó.']);
-        }
-        $order->update($data);
+
+        DB::transaction(function () use ($data, $order): void {
+            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->getKey());
+            $data['delivery_address'] ??= $lockedOrder->delivery_address;
+            if (! array_key_exists('notes', $data)) {
+                $data['notes'] = $lockedOrder->notes;
+            }
+            $allowedTransitions = [
+                'pending' => ['confirmed', 'cancelled'],
+                'confirmed' => ['preparing', 'cancelled'],
+                'preparing' => ['on_the_way', 'cancelled'],
+                'on_the_way' => ['delivered'],
+                'delivered' => [],
+                'cancelled' => [],
+            ];
+
+            if ($data['status'] !== $lockedOrder->status
+                && ! in_array($data['status'], $allowedTransitions[$lockedOrder->status] ?? [], true)) {
+                throw ValidationException::withMessages(['status' => 'Ese cambio de estado no está permitido para este pedido.']);
+            }
+
+            if ($data['status'] === 'cancelled' && $lockedOrder->payment_status === 'paid') {
+                throw ValidationException::withMessages(['status' => 'No se puede cancelar un pedido ya pagado.']);
+            }
+
+            if ($data['status'] === 'cancelled'
+                && $lockedOrder->paymentProofs()->where('status', PaymentProof::STATUS_PENDING)->exists()) {
+                throw ValidationException::withMessages(['status' => 'No se puede cancelar un pedido mientras una evidencia de pago está pendiente de revisión.']);
+            }
+
+            if (! in_array($lockedOrder->status, ['pending', 'confirmed'], true) && (
+                $data['delivery_address'] !== $lockedOrder->delivery_address
+                || $data['notes'] !== $lockedOrder->notes
+            )) {
+                throw ValidationException::withMessages(['delivery_address' => 'La dirección y las notas no se pueden cambiar cuando la preparación ya comenzó.']);
+            }
+
+            $lockedOrder->update($data);
+        });
 
         return redirect()->route('admin.orders')->with('success', 'Pedido actualizado.');
     }
@@ -90,10 +109,15 @@ class AdminController extends Controller
 
     public function archiveOrder(Order $order): RedirectResponse
     {
-        if ($order->status !== 'cancelled' || $order->payment_status !== 'pending') {
-            throw ValidationException::withMessages(['order' => 'Solo se pueden archivar pedidos cancelados y sin pago registrado.']);
-        }
-        $order->delete();
+        DB::transaction(function () use ($order): void {
+            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->getKey());
+
+            if ($lockedOrder->status !== 'cancelled' || $lockedOrder->payment_status !== 'pending') {
+                throw ValidationException::withMessages(['order' => 'Solo se pueden archivar pedidos cancelados y sin pago registrado.']);
+            }
+
+            $lockedOrder->delete();
+        });
 
         return redirect()->route('admin.orders')->with('success', 'Pedido archivado; se conserva su historial.');
     }
@@ -182,12 +206,14 @@ class AdminController extends Controller
     {
         $week = $this->weeklySales();
         $orders = Order::query()->where('status', '!=', 'cancelled');
-        $paymentTotals = (clone $orders)->select('payment_method', DB::raw('COUNT(*) as count'), DB::raw('SUM(total) as total'))
+        $paidOrders = (clone $orders)->where('payment_status', 'paid');
+        $paymentTotals = (clone $paidOrders)->select('payment_method', DB::raw('COUNT(*) as count'), DB::raw('SUM(total) as total'))
             ->groupBy('payment_method')->get()->keyBy('payment_method');
         $topFoods = DB::table('order_items')
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->whereNull('orders.deleted_at')
             ->where('orders.status', '!=', 'cancelled')
+            ->where('orders.payment_status', 'paid')
             ->select('order_items.food_name', DB::raw('SUM(order_items.quantity) as quantity'), DB::raw('SUM(order_items.subtotal) as revenue'))
             ->groupBy('order_items.food_name')
             ->orderByDesc('quantity')
@@ -195,7 +221,7 @@ class AdminController extends Controller
             ->get();
         $summary = [
             'total_orders' => (clone $orders)->count(),
-            'total_sales' => (clone $orders)->sum('total'),
+            'total_sales' => (clone $paidOrders)->sum('total'),
             'food_count' => Food::count(),
             'reservations' => Reservation::count(),
         ];
@@ -208,6 +234,7 @@ class AdminController extends Controller
         $days = collect(range(6, 0))->map(fn (int $offset) => Carbon::today()->subDays($offset));
         $sales = Order::query()
             ->where('status', '!=', 'cancelled')
+            ->where('payment_status', 'paid')
             ->whereDate('created_at', '>=', $days->first()->toDateString())
             ->get(['created_at', 'total'])
             ->groupBy(fn (Order $order) => $order->created_at->toDateString());

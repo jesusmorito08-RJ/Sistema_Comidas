@@ -56,7 +56,7 @@ class CartController extends Controller
     {
         $data = $request->validate([
             'delivery_address' => ['required', 'string', 'max:255'],
-            'payment_method' => ['required', Rule::in(['cash', 'card', 'transfer'])],
+            'payment_method' => ['required', Rule::in(['yape', 'plin'])],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
         $cart = $request->session()->get('cart', []);
@@ -95,7 +95,9 @@ class CartController extends Controller
             $order = Order::create([
                 'user_id' => $request->user()->id,
                 'order_number' => 'PD-'.now()->format('ymd').'-'.Str::upper(Str::random(5)),
+                'status' => 'pending',
                 'payment_method' => $data['payment_method'],
+                'payment_status' => 'pending',
                 'total' => round($total, 2),
                 'delivery_address' => $data['delivery_address'],
                 'notes' => $data['notes'] ?? null,
@@ -113,10 +115,24 @@ class CartController extends Controller
     public function cancelOrder(Request $request, Order $order): RedirectResponse
     {
         $customerOrder = $request->user()->orders()->whereKey($order->id)->firstOrFail();
-        if ($customerOrder->status !== 'pending' || $customerOrder->payment_status !== 'pending') {
-            throw ValidationException::withMessages(['order' => 'Solo puedes cancelar pedidos pendientes y todavía no pagados.']);
-        }
-        $customerOrder->update(['status' => 'cancelled']);
+
+        DB::transaction(function () use ($customerOrder, $request): void {
+            $lockedOrder = Order::query()
+                ->whereKey($customerOrder->getKey())
+                ->where('user_id', $request->user()->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedOrder->status !== 'pending' || $lockedOrder->payment_status !== 'pending') {
+                throw ValidationException::withMessages(['order' => 'Solo puedes cancelar pedidos pendientes y todavía no pagados.']);
+            }
+
+            if ($lockedOrder->paymentProofs()->where('status', 'pending')->exists()) {
+                throw ValidationException::withMessages(['order' => 'No puedes cancelar un pedido mientras una evidencia de pago está pendiente de revisión.']);
+            }
+
+            $lockedOrder->update(['status' => 'cancelled']);
+        });
 
         return redirect()->route('orders.mine')->with('success', 'Pedido cancelado.');
     }

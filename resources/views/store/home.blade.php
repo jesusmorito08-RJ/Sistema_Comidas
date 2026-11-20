@@ -24,7 +24,7 @@
         <div><span class="benefit-icon">✿</span><span><strong>Ingredientes frescos</strong><small>Elegidos cada día</small></span></div>
         <div><span class="benefit-icon">⌁</span><span><strong>Entrega cuidadosa</strong><small>Caliente hasta tu puerta</small></span></div>
         <div><span class="benefit-icon">♡</span><span><strong>Hecho con cariño</strong><small>Como en casa</small></span></div>
-        <div><span class="benefit-icon">✦</span><span><strong>Pago a tu manera</strong><small>Efectivo, tarjeta o transferencia</small></span></div>
+        <div><span class="benefit-icon">✦</span><span><strong>Pago a tu manera</strong><small>Yape o Plin</small></span></div>
     </div>
 </section>
 <section class="section menu-section" id="menu">
