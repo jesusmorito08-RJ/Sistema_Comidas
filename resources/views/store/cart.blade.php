@@ -80,7 +80,50 @@
                     <form method="POST" action="{{ route('checkout') }}" class="form-stack checkout-form">
                         @csrf
                         <label>Dirección de entrega<input name="delivery_address" value="{{ old('delivery_address', auth()->user()->address) }}" required maxlength="255" placeholder="Calle, número, ciudad"></label>
-                        <label>Método de pago<select name="payment_method" required><option value="cash">Efectivo al recibir</option><option value="card">Tarjeta</option><option value="transfer">Transferencia</option></select></label>
+                        <label>Método de pago
+                            <select name="payment_method" required>
+                                <option value="yape" @selected(old('payment_method', 'yape') === 'yape')>Yape</option>
+                                <option value="plin" @selected(old('payment_method') === 'plin')>Plin</option>
+                            </select>
+                        </label>
+                        <div class="payment-instructions">
+                            <p>Después de confirmar el pedido, podrás adjuntar la evidencia desde Mis pedidos.</p>
+                            @php
+                                $paymentMethodLabels = ['yape' => 'Yape', 'plin' => 'Plin'];
+                            @endphp
+                            @foreach(config('payments.methods', []) as $method => $details)
+                                @php
+                                    $holder = $details['holder'] ?? null;
+                                    $phone = $details['phone'] ?? null;
+                                    $qrPath = $details['qr_path'] ?? null;
+                                    $publicDisk = \Illuminate\Support\Facades\Storage::disk('public');
+                                    $qrMimeType = filled($qrPath) && $publicDisk->exists($qrPath)
+                                        ? $publicDisk->mimeType($qrPath)
+                                        : null;
+                                    $hasValidQr = in_array($qrMimeType, ['image/jpeg', 'image/png'], true);
+                                    $hasPaymentDetails = filled($holder) || filled($phone) || $hasValidQr;
+                                @endphp
+                                <details>
+                                    <summary>Datos para {{ $paymentMethodLabels[$method] ?? ucfirst($method) }}</summary>
+                                    @if(filled($holder))
+                                        <p>Titular: {{ $holder }}</p>
+                                    @endif
+                                    @if(filled($phone))
+                                        <p>Número: {{ $phone }}</p>
+                                    @endif
+                                    @if(filled($qrPath))
+                                        @if($hasValidQr)
+                                            <img src="{{ $publicDisk->url($qrPath) }}" alt="QR de {{ $paymentMethodLabels[$method] ?? ucfirst($method) }}">
+                                        @else
+                                            <p>El QR de {{ $paymentMethodLabels[$method] ?? ucfirst($method) }} no está disponible como imagen pública JPG o PNG.</p>
+                                        @endif
+                                    @endif
+                                    @if(!$hasPaymentDetails)
+                                        <p>Los datos de {{ $paymentMethodLabels[$method] ?? ucfirst($method) }} aún no están configurados.</p>
+                                    @endif
+                                </details>
+                            @endforeach
+                        </div>
                         <label>Nota para la cocina <span class="optional">(opcional)</span><textarea name="notes" rows="2" placeholder="Indicaciones especiales"></textarea></label>
                         <button class="button button-primary button-full" type="submit">Confirmar pedido <span>→</span></button>
                     </form>

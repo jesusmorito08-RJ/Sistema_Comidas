@@ -34,7 +34,13 @@ class StorefrontController extends Controller
 
     public function orders(): View
     {
-        $orders = Auth::user()->orders()->with('items')->latest()->get();
+        $orders = Auth::user()->orders()
+            ->with([
+                'items',
+                'paymentProofs' => fn ($query) => $query->orderByDesc('submitted_at')->orderByDesc('id'),
+            ])
+            ->latest()
+            ->get();
 
         return view('store.orders', compact('orders'));
     }

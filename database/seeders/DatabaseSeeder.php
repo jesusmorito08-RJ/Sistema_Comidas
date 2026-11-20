@@ -16,6 +16,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        if (app()->isProduction()) {
+            $this->command?->warn('DatabaseSeeder: omitiendo cuentas de demostración en producción.');
+
+            return;
+        }
+
         User::updateOrCreate(
             ['email' => 'admin@sazon.test'],
             ['name' => 'Administración Sazón', 'password' => 'admin12345', 'role' => 'admin', 'is_active' => true],

@@ -6,6 +6,8 @@ use App\Models\Food;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class FoodOrderingTest extends TestCase
@@ -28,7 +30,7 @@ class FoodOrderingTest extends TestCase
             ->withSession(['cart' => [(string) $food->id => 2]])
             ->post(route('checkout'), [
                 'delivery_address' => 'Calle 123',
-                'payment_method' => 'cash',
+                'payment_method' => 'yape',
             ]);
 
         $response->assertRedirect(route('orders.mine'));
@@ -36,11 +38,50 @@ class FoodOrderingTest extends TestCase
         $this->assertSame('24.00', $order->total);
         $this->assertSame('Pasta de prueba', $order->items->first()->food_name);
         $this->assertSame(2, $order->items->first()->quantity);
-        $this->assertSame('cash', $order->payment_method);
+        $this->assertSame('yape', $order->payment_method);
+        $this->assertSame('pending', $order->status);
+        $this->assertSame('pending', $order->payment_status);
+    }
+
+    #[DataProvider('paymentMethods')]
+    public function test_checkout_creates_yape_and_plin_orders_with_pending_statuses(string $paymentMethod): void
+    {
+        $customer = User::factory()->create(['role' => 'customer']);
+        $food = Food::create([
+            'name' => 'Plato de prueba',
+            'category' => 'Menú',
+            'description' => 'Plato de prueba',
+            'price' => 20,
+            'is_available' => true,
+        ]);
+
+        $this->actingAs($customer)
+            ->withSession(['cart' => [(string) $food->id => 1]])
+            ->post(route('checkout'), [
+                'delivery_address' => 'Calle 123',
+                'payment_method' => $paymentMethod,
+            ])
+            ->assertRedirect(route('orders.mine'));
+
+        $order = Order::query()->firstOrFail();
+        $this->assertSame($paymentMethod, $order->payment_method);
+        $this->assertSame('pending', $order->status);
+        $this->assertSame('pending', $order->payment_status);
     }
 
     public function test_cart_displays_quantity_controls_product_details_and_order_total(): void
     {
+        // Forzar variables de pago vacías para este test, independientemente del .env local
+        config([
+            'payments.methods.yape.holder' => null,
+            'payments.methods.yape.phone' => null,
+            'payments.methods.yape.qr_path' => null,
+            'payments.methods.plin.holder' => null,
+            'payments.methods.plin.phone' => null,
+            'payments.methods.plin.qr_path' => null,
+        ]);
+
+        $customer = User::factory()->create(['role' => 'customer']);
         $food = Food::create([
             'name' => 'Pasta de prueba',
             'category' => 'Pasta',
@@ -51,7 +92,8 @@ class FoodOrderingTest extends TestCase
             'is_available' => true,
         ]);
 
-        $response = $this->withSession(['cart' => [(string) $food->id => 2]])
+        $response = $this->actingAs($customer)
+            ->withSession(['cart' => [(string) $food->id => 2]])
             ->get(route('cart.index'));
 
         $response->assertOk()
@@ -65,7 +107,40 @@ class FoodOrderingTest extends TestCase
             ->assertSeeText('$12.00 c/u')
             ->assertSeeText('$24.00')
             ->assertSeeText('Productos (2)')
-            ->assertSeeText('Total del pedido');
+            ->assertSeeText('Total del pedido')
+            ->assertSee('value="yape"', false)
+            ->assertSee('value="plin"', false)
+            ->assertDontSee('value="cash"', false)
+            ->assertDontSee('value="card"', false)
+            ->assertDontSee('value="transfer"', false)
+            ->assertSeeText('Los datos de Yape aún no están configurados.')
+            ->assertSeeText('Los datos de Plin aún no están configurados.');
+    }
+
+    public function test_cart_does_not_display_a_configured_non_image_as_a_business_qr(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('payment-qr/yape.txt', 'not a QR image');
+        config([
+            'payments.methods.yape.holder' => 'Titular de prueba',
+            'payments.methods.yape.qr_path' => 'payment-qr/yape.txt',
+        ]);
+        $customer = User::factory()->create(['role' => 'customer']);
+        $food = Food::create([
+            'name' => 'Plato de prueba',
+            'category' => 'Menú',
+            'description' => 'Plato de prueba',
+            'price' => 20,
+            'is_available' => true,
+        ]);
+
+        $this->actingAs($customer)
+            ->withSession(['cart' => [(string) $food->id => 1]])
+            ->get(route('cart.index'))
+            ->assertOk()
+            ->assertSeeText('Titular: Titular de prueba')
+            ->assertSeeText('El QR de Yape no está disponible como imagen pública JPG o PNG.')
+            ->assertDontSee('payment-qr/yape.txt', false);
     }
 
     public function test_customer_cannot_open_the_admin_panel_but_admin_can(): void
@@ -99,7 +174,7 @@ class FoodOrderingTest extends TestCase
             ->withSession(['cart' => [(string) $available->id => 1, (string) $unavailable->id => 1]])
             ->post(route('checkout'), [
                 'delivery_address' => 'Calle 123',
-                'payment_method' => 'cash',
+                'payment_method' => 'yape',
             ])
             ->assertSessionHasErrors('cart');
 
@@ -162,5 +237,13 @@ class FoodOrderingTest extends TestCase
             ->assertOk()
             ->assertSeeText('Pollo a la brasa')
             ->assertSeeText('Tallarines verdes con bistec');
+    }
+
+    public static function paymentMethods(): array
+    {
+        return [
+            'Yape' => ['yape'],
+            'Plin' => ['plin'],
+        ];
     }
 }
