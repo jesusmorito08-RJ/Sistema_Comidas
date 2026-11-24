@@ -20,6 +20,7 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/database/receipts_visual_test/
 /vendor
 _ide_helper.php
 Homestead.json
