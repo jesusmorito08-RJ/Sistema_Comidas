@@ -28,34 +28,275 @@
     </div>
 </section>
 <section class="section menu-section" id="menu">
-    <div class="container">
-        <div class="section-heading"><div><span class="eyebrow"><span class="eyebrow-line"></span> SABORES DEL PERÚ Y MÁS</span><h2>Un menú para cada antojo</h2>        <p>Explora platos criollos, opciones a la carta, entradas, postres y más.</p></div><span class="menu-count">{{ $foods->count() }} opciones</span></div>
-        @if($categories->isNotEmpty())
-            <nav class="category-filters" aria-label="Filtrar comidas por categoría">
-                <a class="{{ $selectedCategory === null ? 'active' : '' }}" href="{{ route('foods.index') }}#menu" @if($selectedCategory === null) aria-current="page" @endif>Todos</a>
-                @foreach($categories as $category)
-                    <a class="{{ $selectedCategory === $category ? 'active' : '' }}" href="{{ route('foods.index', ['category' => $category]) }}#menu" @if($selectedCategory === $category) aria-current="page" @endif>{{ $category }}</a>
+    <div class="container menu-panel menu-book" data-menu-book data-active-tab="{{ $activeTabId }}">
+        <header class="menu-book-heading">
+            <span class="eyebrow"><span class="eyebrow-line"></span> SABORES DE SAZÓN</span>
+            <h2>Nuestro menú</h2>
+            <p>Elige una página y descubre platos preparados al momento.</p>
+        </header>
+        @if($menuPages->isNotEmpty())
+            <nav class="menu-tabs" role="tablist" aria-label="Secciones del menú">
+                @foreach($menuPages as $menuPage)
+                    <a
+                        id="tab-{{ $menuPage['id'] }}"
+                        class="menu-tab"
+                        href="#{{ $menuPage['id'] }}"
+                        role="tab"
+                        aria-controls="{{ $menuPage['id'] }}"
+                        aria-selected="{{ $activeTabId === $menuPage['id'] ? 'true' : 'false' }}"
+                        tabindex="{{ $activeTabId === $menuPage['id'] ? '0' : '-1' }}"
+                        data-menu-tab="{{ $menuPage['id'] }}"
+                    >{{ $menuPage['title'] }}</a>
                 @endforeach
             </nav>
-        @endif
-        @if($foods->isEmpty())
-            <div class="empty-state"><span>🍽️</span><h3>Estamos preparando el menú</h3><p>Muy pronto encontrarás aquí algo delicioso.</p></div>
-        @else
-            <div class="food-grid">
-                @foreach($foods as $food)
-                    @php $image = $food->image_path ? (filter_var($food->image_path, FILTER_VALIDATE_URL) ? $food->image_path : \Illuminate\Support\Facades\Storage::disk('public')->url($food->image_path)) : null; @endphp
-                    <article class="food-card">
-                        <div class="food-photo" @if($image) style="background-image:url('{{ $image }}')" @endif>
-                            @if($food->offer_price)<span class="food-tag">OFERTA</span>@elseif($food->is_featured)<span class="food-tag food-tag-soft">FAVORITO</span>@endif
-                            <span class="food-category">{{ $food->category }}</span>
+            <div class="menu-page-stage" data-menu-stage>
+                @foreach($menuPages as $menuPage)
+                    @php $isInitialPage = $menuPage['id'] === $activeTabId; @endphp
+                    <section
+                        id="{{ $menuPage['id'] }}"
+                        class="menu-page{{ $menuPage['foods']->count() > 8 ? ' menu-page--dense' : '' }}{{ $menuPage['compact'] ? ' menu-page--compact' : '' }}"
+                        role="tabpanel"
+                        aria-labelledby="tab-{{ $menuPage['id'] }}"
+                        tabindex="0"
+                        data-menu-page="{{ $menuPage['id'] }}"
+                    >
+                        <header class="menu-page-heading">
+                            <span class="eyebrow"><span class="eyebrow-line"></span> {{ $menuPage['eyebrow'] }}</span>
+                            <h3>{{ $menuPage['title'] }}</h3>
+                            <p>{{ $menuPage['description'] }}</p>
+                        </header>
+                        <div class="menu-dishes">
+                            @foreach($menuPage['foods'] as $food)
+                                @php
+                                    $image = $food->image_path ? (filter_var($food->image_path, FILTER_VALIDATE_URL) ? $food->image_path : \Illuminate\Support\Facades\Storage::disk('public')->url($food->image_path)) : null;
+                                    $photoMotion = $loop->odd ? 'from-right' : 'from-left';
+                                    $textMotion = $loop->odd ? 'from-left' : 'from-right';
+                                @endphp
+                                <article class="menu-dish">
+                                    <div class="menu-dish-copy" data-menu-reveal="{{ $textMotion }}">
+                                        <span class="menu-dish-number">{{ str_pad((string) $loop->iteration, 2, '0', STR_PAD_LEFT) }}</span>
+                                        <span class="menu-dish-category">{{ $food->category }}</span>
+                                        <div class="menu-dish-badges">
+                                            @if($food->is_featured)<span class="menu-badge menu-badge-favorite">FAVORITO</span>@endif
+                                            @if($food->offer_price)<span class="menu-badge menu-badge-offer">OFERTA</span>@endif
+                                        </div>
+                                        <h4>{{ $food->name }}</h4>
+                                        <p>{{ $food->description }}</p>
+                                        <div class="menu-dish-bottom">
+                                            <div class="price">
+                                                @if($food->offer_price)<del>${{ number_format($food->price, 2) }}</del>@endif
+                                                <strong>${{ number_format($food->offer_price ?? $food->price, 2) }}</strong>
+                                            </div>
+                                            <form method="POST" action="{{ route('cart.add', $food) }}">
+                                                @csrf
+                                                <button class="add-button" type="submit" aria-label="Agregar {{ $food->name }} al carrito">+</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    <div class="menu-dish-image" data-menu-reveal="{{ $photoMotion }}">
+                                        @if($image)
+                                            <img
+                                                src="{{ $image }}"
+                                                alt="{{ $food->name }}"
+                                                @if($isInitialPage && $loop->first) loading="eager" fetchpriority="high" @else loading="lazy" @endif
+                                                decoding="async"
+                                                onerror="this.onerror=null;this.hidden=true;this.nextElementSibling.hidden=false"
+                                            >
+                                            <span class="menu-dish-image-placeholder" role="img" aria-label="Imagen no disponible para {{ $food->name }}" hidden>🍽️</span>
+                                        @else
+                                            <span class="menu-dish-image-placeholder" role="img" aria-label="Imagen no disponible para {{ $food->name }}">🍽️</span>
+                                        @endif
+                                    </div>
+                                </article>
+                            @endforeach
                         </div>
-                        <div class="food-info"><div class="food-title-row"><h3>{{ $food->name }}</h3><span class="food-rating">★ 4.9</span></div><p>{{ $food->description }}</p><div class="food-bottom"><div class="price">@if($food->offer_price)<del>${{ number_format($food->price, 2) }}</del>@endif <strong>${{ number_format($food->offer_price ?? $food->price, 2) }}</strong></div><form method="POST" action="{{ route('cart.add', $food) }}">@csrf<button class="add-button" type="submit" aria-label="Agregar {{ $food->name }} al carrito">+</button></form></div></div>
-                    </article>
+                    </section>
                 @endforeach
             </div>
+        @else
+            <div class="empty-state"><span>🍽️</span><h3>Estamos preparando el menú</h3><p>Muy pronto encontrarás aquí algo delicioso.</p></div>
         @endif
     </div>
 </section>
 <section class="offer-banner"><div class="container offer-content"><span class="offer-spark">✳</span><div><span class="eyebrow">UN PEQUEÑO DETALLE PARA TI</span><h2>Tu antojo de hoy merece algo especial.</h2><p>Descubre nuestras ofertas y encuentra tu nuevo favorito.</p></div><a class="button button-white" href="#menu">Ver el menú <span>→</span></a></div></section>
 <section class="section reservation-cta"><div class="container reservation-card"><div><span class="eyebrow"><span class="eyebrow-line"></span> UN MOMENTO PARA COMPARTIR</span><h2>¿Una ocasión especial?</h2><p>Reserva tu horario y déjanos hacer que el momento sea aún más rico.</p></div><a class="button button-primary" href="{{ route('reservations.index') }}">Hacer una reserva <span>→</span></a></div></section>
+<script>
+(() => {
+    const book = document.querySelector('[data-menu-book]');
+    if (!book) {
+        return;
+    }
+
+    const tabs = [...book.querySelectorAll('[data-menu-tab]')];
+    const pages = [...book.querySelectorAll('[data-menu-page]')];
+    const stage = book.querySelector('[data-menu-stage]');
+    if (tabs.length === 0 || pages.length === 0 || !stage) {
+        return;
+    }
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const pageById = new Map(pages.map((page) => [page.id, page]));
+    const tabById = new Map(tabs.map((tab) => [tab.dataset.menuTab, tab]));
+    let activeId = pageById.has(window.location.hash.slice(1))
+        ? window.location.hash.slice(1)
+        : (pageById.has(book.dataset.activeTab) ? book.dataset.activeTab : tabs[0].dataset.menuTab);
+    let isAnimating = false;
+    let animationTimer;
+    let revealObserver;
+
+    // Mantiene las páginas apiladas hasta inicializar pestañas y eventos.
+    const setTabState = (id) => {
+        tabs.forEach((tab) => {
+            const isActive = tab.dataset.menuTab === id;
+            tab.setAttribute('aria-selected', String(isActive));
+            tab.tabIndex = isActive ? 0 : -1;
+        });
+    };
+
+    const setPageState = (id) => {
+        pages.forEach((page) => {
+            const isActive = page.id === id;
+            page.classList.toggle('is-active', isActive);
+        });
+        activeId = id;
+        setTabState(id);
+    };
+
+    if (prefersReducedMotion) {
+        book.classList.add('prefers-reduced-motion');
+    }
+
+    // Observa filas de la página activa; las ya reveladas permanecen visibles.
+    if (!prefersReducedMotion && 'IntersectionObserver' in window) {
+        revealObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.12 });
+    }
+
+    const observePage = (page) => {
+        page.querySelectorAll('[data-menu-reveal]:not(.is-visible)').forEach((target) => {
+            if (revealObserver) {
+                revealObserver.observe(target);
+            } else {
+                target.classList.add('is-visible');
+            }
+        });
+    };
+
+    const scrollToMenu = () => {
+        book.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+    };
+
+    const activatePage = (id, { updateHash = true, shouldScroll = true } = {}) => {
+        const nextPage = pageById.get(id);
+        const nextTab = tabById.get(id);
+        if (!nextPage || !nextTab || isAnimating) {
+            return;
+        }
+
+        if (id === activeId) {
+            if (updateHash) {
+                history.pushState({ menuTab: id }, '', `#${id}`);
+            }
+            if (shouldScroll) {
+                scrollToMenu();
+            }
+            return;
+        }
+
+        const currentPage = pageById.get(activeId);
+        const currentIndex = tabs.findIndex((tab) => tab.dataset.menuTab === activeId);
+        const nextIndex = tabs.findIndex((tab) => tab.dataset.menuTab === id);
+        const direction = nextIndex > currentIndex ? 'forward' : 'backward';
+
+        isAnimating = true;
+        if (updateHash) {
+            history.pushState({ menuTab: id }, '', `#${id}`);
+        }
+        if (shouldScroll) {
+            scrollToMenu();
+        }
+
+        stage.style.height = `${currentPage.scrollHeight}px`;
+        currentPage.classList.add('is-turning-out', `is-${direction}`);
+        nextPage.classList.add('is-turning-in', `is-${direction}`);
+        setTabState(id);
+        book.classList.add('is-transitioning');
+
+        // Pinta la posición inicial antes de iniciar el giro de página.
+        nextPage.getBoundingClientRect();
+        requestAnimationFrame(() => {
+            currentPage.classList.add('is-in-motion');
+            nextPage.classList.add('is-in-motion');
+            stage.style.height = `${nextPage.scrollHeight}px`;
+        });
+
+        const finishTurn = () => {
+            if (!isAnimating) {
+                return;
+            }
+
+            window.clearTimeout(animationTimer);
+            currentPage.classList.remove('is-active', 'is-turning-out', 'is-forward', 'is-backward', 'is-in-motion');
+            nextPage.classList.remove('is-turning-in', 'is-forward', 'is-backward', 'is-in-motion');
+            nextPage.classList.add('is-active');
+            activeId = id;
+            book.classList.remove('is-transitioning');
+            stage.style.height = `${nextPage.scrollHeight}px`;
+            isAnimating = false;
+            observePage(nextPage);
+        };
+
+        animationTimer = window.setTimeout(finishTurn, prefersReducedMotion ? 240 : 880);
+    };
+
+    const hashId = window.location.hash.slice(1);
+    if (pageById.has(hashId)) {
+        activeId = hashId;
+    }
+    setPageState(activeId);
+    tabs.forEach((tab) => {
+        tab.addEventListener('click', (event) => {
+            event.preventDefault();
+            activatePage(tab.dataset.menuTab);
+        });
+
+        tab.addEventListener('keydown', (event) => {
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
+                return;
+            }
+
+            event.preventDefault();
+            if (isAnimating) {
+                return;
+            }
+
+            const currentIndex = tabs.indexOf(tab);
+            const direction = event.key === 'ArrowRight' ? 1 : -1;
+            const nextTab = tabs[(currentIndex + direction + tabs.length) % tabs.length];
+            nextTab.focus();
+            activatePage(nextTab.dataset.menuTab);
+        });
+    });
+
+    window.addEventListener('popstate', () => {
+        const id = window.location.hash.slice(1);
+        if (pageById.has(id)) {
+            activatePage(id, { updateHash: false });
+        }
+    });
+
+    book.classList.add('is-enhanced');
+    stage.style.height = `${pageById.get(activeId).scrollHeight}px`;
+    if (revealObserver) {
+        book.classList.add('has-scroll-reveal');
+    }
+    observePage(pageById.get(activeId));
+})();
+</script>
 @endsection

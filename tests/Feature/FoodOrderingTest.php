@@ -222,13 +222,160 @@ class FoodOrderingTest extends TestCase
 
         $response->assertOk()
             ->assertSeeText('Lomo Saltado')
-            ->assertDontSeeText('Suspiro Limeño')
             ->assertDontSeeText('Plato no disponible')
-            ->assertSee('Postres')
-            ->assertViewHas('selectedCategory', 'Platos criollos')
-            ->assertViewHas('categories', fn ($categories) => $categories->contains('Platos criollos')
-                && $categories->contains('Platos a la carta')
-                && $categories->contains('Postres'));
+            ->assertSee('id="tab-segundos"', false)
+            ->assertViewHas('activeTabId', 'segundos')
+        ->assertViewHas('menuPages', fn ($menuPages) => $menuPages->contains(
+            fn ($page) => $page['id'] === 'segundos'
+                && $page['foods']->every(fn ($food) => $food->category === 'Platos criollos')
+                && $page['foods']->contains('name', 'Lomo Saltado'),
+        ));
+    }
+
+    public function test_storefront_opens_the_matching_tab_for_a_valid_category_query(): void
+    {
+        Food::create([
+            'name' => 'Postre de prueba',
+            'category' => 'Postres',
+            'description' => 'Postre disponible',
+            'price' => 8,
+            'is_available' => true,
+        ]);
+
+        $this->get('/comidas?category=Postres')
+            ->assertOk()
+            ->assertViewHas('activeTabId', 'postres')
+            ->assertViewHas('menuPages', fn ($menuPages) => $menuPages->contains(
+                fn ($page) => $page['id'] === 'postres'
+                    && $page['foods']->every(fn ($food) => $food->category === 'Postres'),
+            ));
+    }
+
+    public function test_storefront_uses_the_daily_tab_for_an_unknown_category_query(): void
+    {
+        $this->get('/comidas?category=NoExiste')
+            ->assertOk()
+            ->assertViewHas('activeTabId', 'platillos-del-dia');
+    }
+
+    public function test_storefront_groups_available_foods_into_the_menu_sections(): void
+    {
+        $categorySections = [
+            'Entrada criolla de prueba' => ['Entradas criollas', 'entradas'],
+            'Antojito de prueba' => ['Antojitos', 'entradas'],
+            'Sopa de prueba' => ['Sopas criollas', 'sopas'],
+            'Segundo criollo de prueba' => ['Platos criollos', 'segundos'],
+            'Segundo a la carta de prueba' => ['Platos a la carta', 'segundos'],
+            'Plato principal heredado' => ['Plato principal', 'segundos'],
+            'Categoría heredada de prueba' => ['Categoría heredada', 'segundos'],
+            'Pasta de prueba' => ['Pastas', 'pastas-hamburguesas'],
+            'Hamburguesa de prueba' => ['Hamburguesas', 'pastas-hamburguesas'],
+            'Plato saludable de prueba' => ['Saludables', 'pastas-hamburguesas'],
+            'Bebida de prueba' => ['Bebidas peruanas', 'bebidas'],
+            'Postre de agrupación' => ['Postres', 'postres'],
+        ];
+        $createdFoods = [];
+
+        foreach ($categorySections as $name => [$category]) {
+            $createdFoods[$name] = Food::create([
+                'name' => $name,
+                'category' => $category,
+                'description' => $name,
+                'price' => 10,
+                'is_available' => true,
+                'is_featured' => false,
+            ]);
+        }
+
+        $dailyFood = Food::create([
+            'name' => 'Destacado de prueba',
+            'category' => 'Platos criollos',
+            'description' => 'Plato destacado',
+            'price' => 20,
+            'is_available' => true,
+            'is_featured' => true,
+        ]);
+        $dailyFood->forceFill([
+            'created_at' => now()->addYears(50),
+            'updated_at' => now(),
+        ])->save();
+
+        $this->get('/comidas')
+            ->assertOk()
+            ->assertViewHas('menuPages', function ($menuPages) use ($categorySections, $createdFoods, $dailyFood): bool {
+                $dailyPage = $menuPages->firstWhere('id', 'platillos-del-dia');
+                if (! $dailyPage || ! $dailyPage['foods']->contains('id', $dailyFood->id)) {
+                    return false;
+                }
+
+                foreach ($categorySections as $name => [, $sectionId]) {
+                    $section = $menuPages->firstWhere('id', $sectionId);
+                    if (! $section || ! $section['foods']->contains('id', $createdFoods[$name]->id)) {
+                        return false;
+                    }
+                }
+
+                $secondsPage = $menuPages->firstWhere('id', 'segundos');
+
+                return ! $secondsPage['foods']->contains('id', $dailyFood->id);
+            });
+    }
+
+    public function test_storefront_limits_daily_dishes_to_the_five_most_recent_featured_foods(): void
+    {
+        $featuredFoods = [];
+
+        for ($index = 1; $index <= 6; $index++) {
+            $food = Food::create([
+                'name' => "Destacado {$index}",
+                'category' => 'Platos criollos',
+                'description' => 'Plato destacado de prueba',
+                'price' => 20,
+                'is_available' => true,
+                'is_featured' => true,
+            ]);
+            $food->forceFill([
+                'created_at' => now()->addYears(50)->addDays($index),
+                'updated_at' => now(),
+            ])->save();
+            $featuredFoods[$index] = $food;
+        }
+
+        $expectedIds = collect(range(2, 6))
+            ->map(fn (int $index) => $featuredFoods[$index]->id)
+            ->reverse()
+            ->values()
+            ->all();
+
+        $this->get('/comidas')
+            ->assertOk()
+            ->assertViewHas('dailyFoods', fn ($dailyFoods) => $dailyFoods->modelKeys() === $expectedIds);
+    }
+
+    public function test_storefront_falls_back_to_available_foods_when_none_are_featured(): void
+    {
+        Food::query()->update(['is_available' => false, 'is_featured' => false]);
+
+        $availableFood = Food::create([
+            'name' => 'Disponible sin destacar',
+            'category' => 'Platos criollos',
+            'description' => 'Plato de respaldo',
+            'price' => 20,
+            'is_available' => true,
+            'is_featured' => false,
+        ]);
+        Food::create([
+            'name' => 'Agotado destacado',
+            'category' => 'Platos criollos',
+            'description' => 'No debe aparecer',
+            'price' => 20,
+            'is_available' => false,
+            'is_featured' => true,
+        ]);
+
+        $this->get('/comidas')
+            ->assertOk()
+            ->assertViewHas('dailyFoods', fn ($dailyFoods) => $dailyFoods->modelKeys() === [$availableFood->id]);
     }
 
     public function test_storefront_shows_the_new_a_la_carta_dishes(): void
