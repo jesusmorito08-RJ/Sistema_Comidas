@@ -67,6 +67,19 @@ class FoodController extends Controller
         return redirect()->route('admin.foods.index')->with('success', 'Comida archivada; puedes restaurarla sin perder su historial.');
     }
 
+    public function forceDestroy(int $id): RedirectResponse
+    {
+        $food = Food::withTrashed()->findOrFail($id);
+        $imagePath = $food->image_path;
+        $food->forceDelete();
+
+        if ($imagePath && ! filter_var($imagePath, FILTER_VALIDATE_URL)) {
+            Storage::disk('public')->delete($imagePath);
+        }
+
+        return redirect()->route('admin.foods.index')->with('success', 'Comida eliminada permanentemente; el historial de pedidos se conserva.');
+    }
+
     public function restore(int $id): RedirectResponse
     {
         $food = Food::onlyTrashed()->findOrFail($id);

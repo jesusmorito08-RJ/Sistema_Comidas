@@ -249,6 +249,7 @@ tbody tr:last-child td{border-bottom:0}.table-strong{font-weight:700;color:#3b3b
 .food-form-submit{display:flex;justify-content:flex-end;align-items:center}
 .food-admin-list{display:grid}
 .food-admin-row{display:grid;grid-template-columns:55px minmax(100px,1fr) auto auto auto;align-items:center;gap:13px;padding:12px 3px;border-top:1px solid #f0eee8}
+.food-admin-actions{grid-column:1/-1;display:flex;align-items:center;gap:10px}
 .admin-food-thumb{width:52px;height:48px;border-radius:6px;background:#eee6db url('https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=150&q=70') center/cover}
 .admin-food-name strong,.admin-food-name small{display:block}.admin-food-name strong{font-size:11px}.admin-food-name small{font-size:9px;color:var(--muted);margin-top:3px}
 .admin-food-price{text-align:right;white-space:nowrap}.admin-food-price strong{font-size:11px}.admin-food-price del{display:block}
@@ -270,7 +271,17 @@ tbody tr:last-child td{border-bottom:0}.table-strong{font-weight:700;color:#3b3b
 .admin-order-bottom{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:9px;color:var(--muted)}
 .inline-update{display:flex;align-items:center;gap:7px}.inline-update select{max-width:145px;border:1px solid var(--line);border-radius:5px;padding:7px 8px;font-size:9px;background:#fffefa}
 .payment-state{font-weight:700;color:var(--green)}
-.pagination-wrap{padding-top:16px}.pagination-wrap nav{display:flex;justify-content:center}.pagination-wrap nav>div:first-child{display:none}.pagination-wrap nav>div:last-child{display:flex;gap:4px}.pagination-wrap a,.pagination-wrap span{padding:6px 10px;background:#fffefa;border:1px solid var(--line);font-size:10px;border-radius:4px}
+.pagination-wrap{padding-top:16px}
+.pagination-wrap nav{display:flex;align-items:center;justify-content:center}
+.pagination-wrap nav>div:first-child{display:none}
+.pagination-wrap nav>div:last-child{display:flex;flex:1;align-items:center;justify-content:space-between;gap:16px}
+.pagination-wrap nav>div:last-child>div:first-child p{margin:0;color:var(--muted);font-size:12px}
+.pagination-wrap nav>div:last-child>div:last-child>span{display:inline-flex;align-items:center;border-radius:6px;box-shadow:none}
+.pagination-wrap nav a,.pagination-wrap nav [aria-disabled]>span,.pagination-wrap nav [aria-current]>span{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;margin-left:-1px;padding:0 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font-size:12px;text-decoration:none}
+.pagination-wrap nav a:hover{position:relative;z-index:1;border-color:var(--blue);color:var(--blue-dark)}
+.pagination-wrap nav [aria-current]>span{position:relative;z-index:1;background:#302b48;border-color:#514773;color:#c8b7ff}
+.pagination-wrap nav [aria-disabled]>span{color:var(--muted)}
+.pagination-wrap nav svg{display:block;width:16px;height:16px}
 .button-danger-soft{color:var(--red-dark);background:#fff0f2}
 .customer-name{display:flex;align-items:center;gap:8px}.customer-name .avatar-circle{width:27px;height:27px;font-size:9px}
 .report-chart{margin-bottom:15px}
@@ -312,6 +323,7 @@ tbody tr:last-child td{border-bottom:0}.table-strong{font-weight:700;color:#3b3b
   .admin-grid-main{grid-template-columns:1fr}.food-form{grid-template-columns:1fr 1fr}.food-description{grid-column:span 2}
   .food-admin-row{grid-template-columns:46px minmax(80px,1fr) auto auto;gap:9px}.admin-food-thumb{width:43px;height:43px}.availability{display:none}.food-admin-row>form{grid-column:4}
   .admin-order-bottom{align-items:flex-start;flex-direction:column}.inline-update{flex-wrap:wrap}.inline-update select{max-width:130px}
+  .pagination-wrap nav>div:last-child{flex-wrap:wrap;justify-content:center}.pagination-wrap nav>div:last-child>div:first-child{flex-basis:100%;text-align:center}
   .payment-proof-actions{grid-template-columns:1fr}
   .report-columns,.customer-activity-grid{grid-template-columns:1fr}
 }
@@ -416,7 +428,6 @@ td{color:#c0c9da;border-color:#30394d}
 .edit-food[open] .edit-food-form{background:#1c2534;border-color:#46516a}
 .inline-update select{border-color:#3a455b}
 .payment-state{color:#9fd7bf}
-.pagination-wrap a,.pagination-wrap span{background:#1a2230;border-color:#3a455b;color:#d0d8e8}
 .button-danger-soft{color:#ff9aa5;background:#402832}
 .status{background:#2a3345;color:#c5cee0}
 .status-pending{background:#413326;color:#f0c27e}

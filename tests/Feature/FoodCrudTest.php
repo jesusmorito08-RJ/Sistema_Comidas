@@ -3,8 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Food;
+use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class FoodCrudTest extends TestCase
@@ -73,6 +76,63 @@ class FoodCrudTest extends TestCase
             ->assertSessionHasErrors('food');
 
         $this->assertSoftDeleted('foods', ['id' => $archivedFood->id]);
+    }
+
+    public function test_admin_can_permanently_delete_active_or_archived_foods_without_losing_order_history(): void
+    {
+        Storage::fake('public');
+        $admin = User::factory()->create(['role' => 'admin']);
+        $customer = User::factory()->create();
+        $food = Food::create([
+            'name' => 'Platillo para eliminar',
+            'category' => 'Entradas criollas',
+            'description' => 'Descripción',
+            'price' => 10,
+            'image_path' => 'foods/platillo.jpg',
+            'is_available' => true,
+        ]);
+        Storage::disk('public')->put($food->image_path, 'imagen');
+        $order = Order::create([
+            'user_id' => $customer->id,
+            'order_number' => 'ORD-FOOD-DELETE',
+            'payment_method' => 'cash',
+            'total' => 10,
+            'delivery_address' => 'Dirección de prueba',
+        ]);
+        $orderItem = OrderItem::create([
+            'order_id' => $order->id,
+            'food_id' => $food->id,
+            'food_name' => $food->name,
+            'unit_price' => 10,
+            'quantity' => 1,
+            'subtotal' => 10,
+        ]);
+        $archivedFood = Food::create([
+            'name' => 'Platillo archivado',
+            'category' => 'Entradas criollas',
+            'description' => 'Descripción',
+            'price' => 12,
+            'is_available' => true,
+        ]);
+        $archivedFood->delete();
+
+        $this->actingAs($admin);
+        $this->delete(route('admin.foods.force-destroy', $food->id))
+            ->assertRedirect(route('admin.foods.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseMissing('foods', ['id' => $food->id]);
+        $this->assertDatabaseHas('order_items', [
+            'id' => $orderItem->id,
+            'food_id' => null,
+            'food_name' => 'Platillo para eliminar',
+        ]);
+        Storage::disk('public')->assertMissing('foods/platillo.jpg');
+
+        $this->delete(route('admin.foods.force-destroy', $archivedFood->id))
+            ->assertRedirect(route('admin.foods.index'))
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseMissing('foods', ['id' => $archivedFood->id]);
     }
 
     public function test_admin_cannot_save_a_food_in_an_unsupported_category(): void
