@@ -117,6 +117,28 @@ class FoodOrderingTest extends TestCase
             ->assertSeeText('Los datos de Plin aún no están configurados.');
     }
 
+    public function test_cart_links_back_to_menu_without_clearing_selected_foods(): void
+    {
+        $food = Food::create([
+            'name' => 'Plato de prueba',
+            'category' => 'Menú',
+            'description' => 'Plato de prueba',
+            'price' => 20,
+            'is_available' => true,
+        ]);
+        $cart = [(string) $food->id => 2];
+
+        $this->withSession(['cart' => $cart])
+            ->get(route('cart.index'))
+            ->assertOk()
+            ->assertSee('href="'.route('foods.index').'#menu"', false)
+            ->assertSessionHas('cart', $cart);
+
+        $this->get(route('foods.index'))
+            ->assertOk()
+            ->assertSessionHas('cart', $cart);
+    }
+
     public function test_cart_does_not_display_a_configured_non_image_as_a_business_qr(): void
     {
         Storage::fake('public');

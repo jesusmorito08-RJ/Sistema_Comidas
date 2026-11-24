@@ -91,6 +91,7 @@ button{cursor:pointer}
 .page-section{min-height:65vh;padding-top:55px}
 .page-heading{margin-bottom:32px}.page-heading h1{font-size:45px;margin:12px 0 5px}.page-heading p{margin:0;color:var(--muted);font-size:13px}
 .cart-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.8fr);gap:28px;align-items:start}
+.cart-continue-shopping{justify-self:start}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .cart-items{display:grid;gap:15px}
 .cart-item{display:flex;align-items:center;gap:18px;padding:17px;background:var(--paper);border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow);transition:transform .2s,border-color .2s}
