@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Food;
+use App\Models\Order;
 use App\Models\PaymentProof;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -10,6 +12,40 @@ use Tests\TestCase;
 class OrderManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_customer_checkout_order_is_visible_to_admin_with_customer_and_items(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $customer = User::factory()->create(['role' => 'customer']);
+        $food = Food::create([
+            'name' => 'Plato para pedido administrativo',
+            'category' => 'Platos criollos',
+            'description' => 'Plato de prueba',
+            'price' => 20,
+            'is_available' => true,
+        ]);
+
+        $this->actingAs($customer)
+            ->withSession(['cart' => [(string) $food->id => 1]])
+            ->post(route('checkout'), [
+                'delivery_address' => 'Calle 123',
+                'payment_method' => 'yape',
+            ])
+            ->assertRedirect(route('orders.mine'));
+
+        $order = Order::query()->where('user_id', $customer->id)->firstOrFail();
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'user_id' => $customer->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.orders'))
+            ->assertOk()
+            ->assertSeeText($customer->name)
+            ->assertSeeText($order->order_number)
+            ->assertSeeText('Plato para pedido administrativo');
+    }
 
     public function test_admin_cannot_skip_order_statuses_and_can_archive_cancelled_orders(): void
     {
