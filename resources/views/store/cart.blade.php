@@ -10,6 +10,7 @@
         @endphp
         <div class="cart-layout">
             <div class="cart-items">
+                <a class="button button-outline cart-continue-shopping" href="{{ route('foods.index') }}#menu">← Seguir comprando</a>
                 @foreach($cart as $line)
                     @php
                         $food = $line['food'];

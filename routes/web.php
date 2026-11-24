@@ -49,6 +49,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/comidas/{food}/editar', [FoodController::class, 'edit'])->name('foods.edit');
         Route::put('/comidas/{food}', [FoodController::class, 'update'])->name('foods.update');
         Route::delete('/comidas/{food}', [FoodController::class, 'destroy'])->name('foods.destroy');
+        Route::delete('/comidas/{id}/eliminar', [FoodController::class, 'forceDestroy'])->name('foods.force-destroy');
         Route::post('/comidas/{id}/restaurar', [FoodController::class, 'restore'])->name('foods.restore');
         Route::get('/pedidos', [AdminController::class, 'orders'])->name('orders');
         Route::get('/pedidos/{order}/editar', [AdminController::class, 'editOrder'])->name('orders.edit');

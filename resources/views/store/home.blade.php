@@ -137,10 +137,12 @@
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const pageById = new Map(pages.map((page) => [page.id, page]));
     const tabById = new Map(tabs.map((tab) => [tab.dataset.menuTab, tab]));
+    const defaultTabId = pageById.has(book.dataset.activeTab) ? book.dataset.activeTab : tabs[0].dataset.menuTab;
     let activeId = pageById.has(window.location.hash.slice(1))
         ? window.location.hash.slice(1)
-        : (pageById.has(book.dataset.activeTab) ? book.dataset.activeTab : tabs[0].dataset.menuTab);
+        : defaultTabId;
     let isAnimating = false;
+    let pendingHistoryId = null;
     let animationTimer;
     let revealObserver;
 
@@ -200,9 +202,6 @@
         }
 
         if (id === activeId) {
-            if (updateHash) {
-                history.pushState({ menuTab: id }, '', `#${id}`);
-            }
             if (shouldScroll) {
                 scrollToMenu();
             }
@@ -250,15 +249,17 @@
             stage.style.height = `${nextPage.scrollHeight}px`;
             isAnimating = false;
             observePage(nextPage);
+
+            const nextHistoryId = pendingHistoryId;
+            pendingHistoryId = null;
+            if (nextHistoryId && nextHistoryId !== activeId) {
+                activatePage(nextHistoryId, { updateHash: false });
+            }
         };
 
         animationTimer = window.setTimeout(finishTurn, prefersReducedMotion ? 240 : 880);
     };
 
-    const hashId = window.location.hash.slice(1);
-    if (pageById.has(hashId)) {
-        activeId = hashId;
-    }
     setPageState(activeId);
     tabs.forEach((tab) => {
         tab.addEventListener('click', (event) => {
@@ -286,9 +287,15 @@
 
     window.addEventListener('popstate', () => {
         const id = window.location.hash.slice(1);
-        if (pageById.has(id)) {
-            activatePage(id, { updateHash: false });
+        const nextId = pageById.has(id) ? id : defaultTabId;
+
+        if (isAnimating) {
+            pendingHistoryId = nextId;
+
+            return;
         }
+
+        activatePage(nextId, { updateHash: false });
     });
 
     book.classList.add('is-enhanced');
