@@ -11,11 +11,17 @@
                 <div class="admin-food-name"><strong>{{ $food->name }}</strong><small>{{ $food->category }} · {{ $food->is_featured ? 'Favorito' : 'Menú' }}</small></div>
                 <div class="admin-food-price">@if($food->offer_price)<del>${{ number_format($food->price, 2) }}</del> @endif<strong>${{ number_format($food->offer_price ?? $food->price, 2) }}</strong></div>
                 @if(request()->boolean('archived'))
-                    <form method="POST" action="{{ route('admin.foods.restore', $food->id) }}">@csrf<button class="mini-action" type="submit">Restaurar</button></form>
+                    <div class="food-admin-actions">
+                        <form method="POST" action="{{ route('admin.foods.restore', $food->id) }}">@csrf<button class="mini-action" type="submit">Restaurar</button></form>
+                        <form method="POST" action="{{ route('admin.foods.force-destroy', $food->id) }}">@csrf @method('DELETE')<button class="remove-link" type="submit" onclick="return confirm('¿Eliminar permanentemente esta comida? No se podrá restaurar. El historial de pedidos se conservará.')">Eliminar</button></form>
+                    </div>
                 @else
                     <span class="availability {{ $food->is_available ? 'available' : 'unavailable' }}">{{ $food->is_available ? 'Disponible' : 'Pausado' }}</span>
                     <a class="mini-action" href="{{ route('admin.foods.edit', $food) }}">Editar</a>
-                    <form method="POST" action="{{ route('admin.foods.destroy', $food) }}">@csrf @method('DELETE')<button class="remove-link" type="submit" onclick="return confirm('¿Archivar esta comida? Se conserva en el historial de pedidos.')">Archivar</button></form>
+                    <div class="food-admin-actions">
+                        <form method="POST" action="{{ route('admin.foods.destroy', $food) }}">@csrf @method('DELETE')<button class="remove-link" type="submit" onclick="return confirm('¿Archivar esta comida? Se conserva en el historial de pedidos.')">Archivar</button></form>
+                        <form method="POST" action="{{ route('admin.foods.force-destroy', $food->id) }}">@csrf @method('DELETE')<button class="remove-link" type="submit" onclick="return confirm('¿Eliminar permanentemente esta comida? No se podrá restaurar. El historial de pedidos se conservará.')">Eliminar</button></form>
+                    </div>
                 @endif
             </article>
         @empty
